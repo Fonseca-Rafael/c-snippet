@@ -1,0 +1,157 @@
+https://www.csl.mtu.edu/cs4411.ck/www/NOTES/signal/kill.html
+
+Sending a Signal to Another Process: System Call kill()
+
+To send a signal to another process, we need to use the Unix system kill(). The following is the prototype of kill():
+
+int  kill(pid_t pid, int sig)
+System call kill() takes two arguments. The first, pid, is the process ID you want to send a signal to, and the second, sig, is the signal you want to send. Therefore, you have to find some way to know the process ID of the other party.
+If the call to kill() is successful, it returns 0; otherwise, the returned value is negative.
+Because of this capability, kill() can also be considered as a communication mechanism among processes with signals SIGUSR1 and SIGUSR2.
+The pid argument can also be zero or negative to indicate that the signal should be sent to a group of processes. But, for simplicity, we will not discuss this case.
+
+
+Example
+This example consists of two processes, one of which sends SIGINT and SIGQUIT to interrupt and kill the other's computation. The following is the first, major process that performs the computation. Click here to download this program.
+#include  <stdio.h>
+#include  <sys/types.h>
+#include  <signal.h>
+#include  <sys/ipc.h>
+#include  <sys/shm.h>
+
+void  SIGINT_handler(int);   
+void  SIGQUIT_handler(int); 
+
+int   ShmID;      
+pid_t *ShmPTR;    
+
+void main(void)
+{
+     int   i;
+     pid_t pid = getpid();
+     key_t MyKey;
+
+     if (signal(SIGINT, SIGINT_handler) == SIG_ERR) {
+          printf("SIGINT install error\n");
+          exit(1);
+     }
+     if (signal(SIGQUIT, SIGQUIT_handler) == SIG_ERR) {
+          printf("SIGQUIT install error\n");
+          exit(2);
+     }
+
+     MyKey   = ftok(".", 's');    
+     ShmID   = shmget(MyKey, sizeof(pid_t), IPC_CREAT | 0666);
+     ShmPTR  = (pid_t *) shmat(ShmID, NULL, 0);
+     *ShmPTR = pid;               
+
+     for (i = 0; ; i++) {        
+          printf("From process %d: %d\n", pid, i);
+          sleep(1);
+     }
+}
+
+void  SIGINT_handler(int sig)
+{
+     signal(sig, SIG_IGN);
+     printf("From SIGINT: just got a %d (SIGINT ^C) signal\n", sig);
+     signal(sig, SIGINT_handler);
+}
+
+void  SIGQUIT_handler(int sig)
+{
+     signal(sig, SIG_IGN);
+     printf("From SIGQUIT: just got a %d (SIGQUIT ^\\) signal"
+                          " and is about to quit\n", sig);
+     shmdt(ShmPTR);
+     shmctl(ShmID, IPC_RMID, NULL);
+
+     exit(3);
+}
+This program installs two signal handlers for SIGINT and SIGQUIT. Then, it creates a shared memory, attaches this shared memory to its address space, and saves its process ID there for another process to retrieve. After this is done, this program enters an infinite loop.
+The SIGINT handler prints out a message indicating that a SIGINT signal was received.
+The SIGQUIT handler prints out a message indicating a SIGQUIT was receives. Then, it detaches and removes the shared memory, and exits!
+When this program is run, it will print out the counter values. Pressing Ctrl-C causes the SIGINT handler to print a message telling you that a SIGINT was received. Pressing Ctrl-\ generates a SIGQUIT signal, which is received by the SIGQUIT handler. Then, the program terminates. This is not very interesting because we have already discussed about this.
+
+Now, let us look at another program. Click here to download a copy.
+
+#include  <stdio.h>
+#include  <sys/types.h>
+#include  <signal.h>
+#include  <sys/ipc.h>
+#include  <sys/shm.h>
+
+void  main(void)
+{
+     pid_t   pid;
+     key_t MyKey;
+     int   ShmID;
+     pid_t *ShmPTR;
+     char  line[100], c;
+     int   i;
+
+     MyKey   = ftok(".", 's');        
+     ShmID   = shmget(MyKey, sizeof(pid_t), 0666);
+     ShmPTR  = (pid_t *) shmat(ShmID, NULL, 0);
+     pid     = *ShmPTR;                
+     shmdt(ShmPTR);                    
+
+     while (1) {                       
+          printf("Want to interrupt the other guy or kill it (i or k)? ");
+          gets(line);
+          for (i = 0; !(isalpha(line[i])); i++)
+               ;
+               c = line[i];
+          if (c == 'i' || c == 'I') {  
+               kill(pid, SIGINT);
+               printf("Sent a SIGINT signal\n");
+          }
+          else if (c == 'k' || c == 'K') {
+               printf("About to send a SIGQUIT signal\n");
+               kill(pid, SIGQUIT);     
+               printf("Done.....\n");
+               exit(0);
+          }
+          else
+               printf("Wrong keypress (%c).  Try again\n", c);
+     }
+}
+This program requests the shared memory segment created by the previous program. Since both programs use ftok() to create the key, they should be in the same directory.
+Then, it retrieves the process ID stored in the shared memory segment and enters an infinite loop asking for a single character input.
+If the input is i, a SIGINT is sent to the other process with kill().
+If the input is k, a SIGQUIT is sent to the other process with kill(). After this is done, this program exits.
+As you can see, with raise() (click here to learn about it) and kill(), we do not need to actually press a key to generate a particular signal. Moreover, some signals have no corresponding keys.
+Now, let us see how to play with these two programs. The first program is called process-a and the second process-b. Because process-a must create a shared memory segment and save its process ID there, it must run first. So, run this program in one window until some output lines are shown. At this moment, the shared memory has been created and the process ID stored properly.
+
+Then, move to another window and run process-b. If you type i, process-b sends a SIGINT to process-a, and if you type k, process-b send a SIGQUIT to process-a.
+
+
+
+The kill Command
+As you might have learned, kill is also a command for you to kill a running process using a process ID. Moreover, we frequently use
+
+kill -9 xyz
+to kill a process that is so stubborn that a simple kill is not powerful enough to kill. So, what does -9 mean? Actually, this 9 is the signal number of SIGKILL for killing a process. If we can use the kill system call to kill a process (i.e., sending a SIGKILL to it), it should be possible to send any signal to a process withe the kill command. This is true. The kill command has the following form:
+kill -signal pid pid pid ... pid
+The first argument, shown in boldface, is the signal name that represents the signal to be sent. This signal name does not include SIG. Thus, if you want to send signals SIGINT, SIGQUIT and SIGKILL, use INT, QUIT and KILL, respectively.
+If the signal name is missing, the default SIGTERM is used.
+Following the signal name is a list of process IDs to which the signal will be sent. These process IDs are separated by white spaces. Thus, the following kill command sends signal SIGINT to process IDs 13579 and 36214.
+kill -KILL 13579 36214
+Let us get back to process-a. Run process-a in a window, move to another window and use
+
+ps -Af | grep "process-a"
+to find out the process ID of process-a. Once you know its process ID, say 34567, you can use
+kill -INT 34567
+to send a SIGINT signal to process-a, and use
+kill -QUIT 34567
+to send a SIGQUIT signal to process-a. Of course, you can use
+kill -KILL 34567
+to kill process-a. But, in this case, process-a will have no chance to remove the shared memory, and you have to use the ipcrm command.
+Finally, a kill command with -l and without process IDs lists all available signals:
+
+kill -l
+Its output may look like the follows:
+HUP INT QUIT ILL TRAP ABRT EMT FPE KILL BUS SEGV SYS PIPE ALRM 
+TERM USR1 USR2 CHLD PWR WINCH URG IO STOP TSTP CONT TTIN TTOU 
+VTALRM PROF XCPU XFSZ 
+As you can see, SIGKILL is the ninth one.
