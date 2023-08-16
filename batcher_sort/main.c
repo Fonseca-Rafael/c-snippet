@@ -49,8 +49,7 @@ static void merge(const int p0, const int pn, int* A)
     
     // final merge
     for(i=p0+1; i<=pn-2; i+=2){
-            //printf("A[%d] <=> A[%d]\n", i, i+1);
-            compare(A+i, A+i+1);
+        compare(A+i, A+i+1);
     }
     
 }
