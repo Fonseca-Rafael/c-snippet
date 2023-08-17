@@ -10,7 +10,7 @@
 /**
  * @note N must be power of 2
  */
-#define N 16
+#define N 8
 
 static void compare(int* AL, int* AR)
 {
@@ -40,23 +40,25 @@ static void __merge(const int p0, const int pn, int* A)
 
     // even sort;
     compare(A+p0, A+(p0+m));
-    for(i=p0+2; i<pn; i+=2){
-        for(j=i+2; j<pn; j+=2){
-            compare(A+i, A+j);
+    for(i=2; i<n-4; i+=2){
+        for(j=i+2; j<n; j+=2){
+            compare(A+p0+i, A+p0+j);
         }
     } 
+    compare(A+p0+(n-4), A+(p0+(n-2)));
    
     // odd sort 
     compare(A+p0+1, A+(p0+m+1));
-    for(i=p0+3; i<=pn; i+=2){
-        for(j=i+2; j<=pn; j+=2){
-            compare(A+i, A+j);
+    for(i=3; i<n-3; i+=2){
+        for(j=i+2; j<n; j+=2){
+            compare(A+p0+i, A+p0+j);
         }
     } 
+    compare(A+p0+(n-3), A+(p0+(n-1)));
     
     // final merge
-    for(i=p0+1; i<=pn-2; i+=2){
-        compare(A+i, A+i+1);
+    for(i=1; i<=n-2; i+=2){
+        compare(A+p0+i, A+p0+i+1);
     }
 }
 
@@ -112,7 +114,7 @@ static void sort(const int p0, const int pn, int* A)
     sort(p0, p0+(m-1), A);
     sort((p0+m), pn, A);
     
-    merge(p0, pn, A);
+    __merge(p0, pn, A);
 }
 
 /**
@@ -122,15 +124,19 @@ static void sort(const int p0, const int pn, int* A)
 int main(int argc, char **argv)
 {
     int idx;
-    //int A[N] = {2, 7, 6, 3, 9, 4, 1, 8};
-    
+   
+    //int A[N] = {8, 20, 84, 31, 14, 84, 39, 48, 80, 72, 77, 72, 24, 84, 57, 66}; 
+    int A[N] = {2, 7, 6, 3, 9, 4, 1, 8};
     // random initialization
+    /*
     int A[N];
+    
     srand(time(NULL));
     for(idx=0; idx<N; ++idx){
         A[idx] = rand() % 100 + 1;
     }
-    
+    */
+
     printf(" == original array:\n");
     for(idx=0; idx<N; ++idx){
         printf("%d ", A[idx]);
