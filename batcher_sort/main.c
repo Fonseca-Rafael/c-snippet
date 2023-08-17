@@ -10,7 +10,7 @@
 /**
  * @note N must be power of 2
  */
-#define N 8
+#define N 16
 
 static void compare(int* AL, int* AR)
 {
@@ -19,6 +19,44 @@ static void compare(int* AL, int* AR)
         aux = *AL;
         *AL  = *AR;
         *AR  = aux;
+    }
+}
+
+/**
+ * @fn      merge
+ * @brief   merge
+ * @note    originally the merge starts with odds but due C indexing 1 is not 
+ *          the first position so here we start with evens 
+ */
+static void __merge(const int p0, const int pn, int* A)
+{
+    int i;
+    int j;
+    int m;
+    int n;
+
+    n = (pn - p0) + 1;
+    m = n/2;
+
+    // even sort;
+    compare(A+p0, A+(p0+m));
+    for(i=p0+2; i<pn; i+=2){
+        for(j=i+2; j<pn; j+=2){
+            compare(A+i, A+j);
+        }
+    } 
+   
+    // odd sort 
+    compare(A+p0+1, A+(p0+m+1));
+    for(i=p0+3; i<=pn; i+=2){
+        for(j=i+2; j<=pn; j+=2){
+            compare(A+i, A+j);
+        }
+    } 
+    
+    // final merge
+    for(i=p0+1; i<=pn-2; i+=2){
+        compare(A+i, A+i+1);
     }
 }
 
@@ -84,16 +122,14 @@ static void sort(const int p0, const int pn, int* A)
 int main(int argc, char **argv)
 {
     int idx;
-    int A[N] = {2, 7, 6, 3, 9, 4, 1, 8};
- 
+    //int A[N] = {2, 7, 6, 3, 9, 4, 1, 8};
+    
     // random initialization
-    /*
     int A[N];
     srand(time(NULL));
     for(idx=0; idx<N; ++idx){
         A[idx] = rand() % 100 + 1;
     }
-    */
     
     printf(" == original array:\n");
     for(idx=0; idx<N; ++idx){
